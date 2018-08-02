@@ -1,0 +1,33 @@
+{
+  "name": "@wesleytodd/react-state-container-middleware",
+  "version": "0.0.0",
+  "description": "An express style middleware to wrap creating a state container then rendering a React component",
+  "author": "Wes Todd <wes@wesleytodd.com>",
+  "keywords": [
+    "React",
+    "Redux",
+    "state container",
+    "express",
+    "SSR",
+    "isomorphic"
+  ],
+  "license": "ISC",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:wesleytodd/react-state-container-middleware.git"
+  },
+  "scripts": {
+    "test": "standard",
+    "prepublushOnly": "npm t"
+  },
+  "devDependencies": {
+    "react": "^16.4.2",
+    "react-dom": "^16.4.2",
+    "standard": "^11.0.1"
+  },
+  "dependencies": {
+    "@wesleytodd/state-container": "0.0.1",
+    "react-express-middleware": "4.0.0-7"
+  }
+}
