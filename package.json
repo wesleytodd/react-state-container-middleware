@@ -1,6 +1,6 @@
 {
   "name": "@wesleytodd/react-state-container-middleware",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "An express style middleware to wrap creating a state container then rendering a component",
   "author": "Wes Todd <wes@wesleytodd.com>",
   "keywords": [
