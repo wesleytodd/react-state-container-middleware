@@ -1,21 +1,34 @@
 'use strict'
 // vim: set ts=2 sw=2 expandtab:
-const reactExpressMiddleware = require('react-express-middleware')
-const _createStore = require('@wesleytodd/state-container')
 
-module.exports = function reactExpressMiddlewareWithStateContainer (Component, opts = {}) {
+module.exports = stateContainerMiddleware
+function stateContainerMiddleware (thingToRender, opts) {
   // Default options
+  const renderMiddlewareFactory = opts.renderMiddlewareFactory
+  const createStore = opts.createStore
   const handleErrors = opts.handleErrors || false
   const dispatchKey = opts.dispatchKey || '$dispatch'
   const subscribeKey = opts.subscribeKey || '$subscribe'
   const routeChangeAction = opts.routeChangeAction || '$routeChange'
-  const createStore = opts.createStore || _createStore
-  const noHydrate = opts.noHydrate || false
+  const renderErrorAction = opts.renderErrorAction || '$renderError'
+
+  // Require a renderMiddlewareFactory and createStore
+  if (typeof renderMiddlewareFactory !== 'function') {
+    throw new TypeError('renderMiddlewareFactory is required')
+  }
+  if (typeof createStore !== 'function') {
+    throw new TypeError('createStore is required')
+  }
 
   function mw (err, req, res, next) {
-    let store
+    // since you cannot/should not render multiple times on the server,
+    // this functionality should only run on the client side, skip on the server
+    if (typeof window === 'undefined') {
+      return _render(opts)
+    }
 
-    const o = Object.assign({}, opts, {
+    let store
+    return _render(Object.assign({}, opts, {
       before: (options, req, res, done) => {
         // Add dispatch & subscribe to res.locals so it is exposed to the app
         res.locals[dispatchKey] = (action) => {
@@ -32,7 +45,7 @@ module.exports = function reactExpressMiddlewareWithStateContainer (Component, o
         }
 
         // Create the store
-        store = createStore(options.Component.reducer || options.reducer || (state => state), res.locals)
+        store = createStore((thingToRender && thingToRender.reducer) || options.reducer || (state => state), res.locals)
 
         if (opts.before) {
           opts.before(options, req, res, done)
@@ -49,8 +62,12 @@ module.exports = function reactExpressMiddlewareWithStateContainer (Component, o
         // Subscribe to the store for renders
         const unsub = store.subscribe((state) => {
           render(state, (err) => {
-            // @TODO error handling once the first render occurs?
-            if (err) debugger // eslint-disable-line
+            if (err) {
+              store.dispatch({
+                type: renderErrorAction,
+                error: unsub
+              })
+            }
           })
         })
 
@@ -72,14 +89,52 @@ module.exports = function reactExpressMiddlewareWithStateContainer (Component, o
           }
         }
       }
-    })
+    }))
 
-    // Create a reactExpressMiddleware
-    const renderMW = noHydrate ? reactExpressMiddleware.render(Component, o) : reactExpressMiddleware(Component, o)
+    function _render (o) {
+      // Create a reactExpressMiddleware
+      const renderMW = renderMiddlewareFactory(thingToRender, o)
 
-    // Call the middleware
-    ;(handleErrors) ? renderMW(err, req, res, next) : renderMW(req, res, next)
+      // Call the middleware
+      ;(handleErrors) ? renderMW(err, req, res, next) : renderMW(req, res, next)
+    }
   }
 
   return handleErrors ? mw : (req, res, next) => mw(null, req, res, next)
+}
+
+module.exports.createFactory = function (opts = {}) {
+  const createStore = opts.createStore
+  const routeChangeAction = opts.routeChangeAction || '$routeChange'
+
+  if (typeof createStore !== 'function') {
+    throw new TypeError('createStore is required')
+  }
+
+  let unsubscribe
+  const o = Object.assign(opts, {
+    createStore: (reducer, initialState) => {
+      if (typeof unsubscribe === 'function') {
+        unsubscribe()
+        unsubscribe = null
+      }
+
+      // Create our new store
+      const store = createStore(reducer, initialState)
+
+      // unsubscribe on route change
+      const unsub = store.subscribe((state, oldState, action) => {
+        if (action.type === routeChangeAction) {
+          unsubscribe = action.unsubscribe
+          unsub()
+        }
+      })
+
+      return store
+    }
+  })
+
+  return function (toRender) {
+    return stateContainerMiddleware(toRender, o)
+  }
 }
