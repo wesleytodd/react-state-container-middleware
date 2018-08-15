@@ -123,10 +123,9 @@ module.exports.createFactory = function (opts = {}) {
       const store = createStore(reducer, initialState)
 
       // unsubscribe on route change
-      const unsub = store.subscribe((state, oldState, action) => {
+      store.subscribe((state, oldState, action) => {
         if (action.type === routeChangeAction) {
           unsubscribe = action.unsubscribe
-          unsub()
         }
       })
 
