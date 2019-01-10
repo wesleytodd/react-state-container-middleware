@@ -62,6 +62,7 @@ function stateContainerMiddleware (thingToRender, opts) {
         // Subscribe to the store for renders
         const unsub = store.subscribe((state) => {
           render(state, (err) => {
+            // @TODO figure out how to allow a user to call `next(err)` here if they want to
             if (err) {
               store.dispatch({
                 type: renderErrorAction,
